@@ -139,6 +139,10 @@ a.btn.primary:hover{background:#fff;border-color:#fff}
 .pagehead{padding:20px 0 28px}
 .pagehead h1{font-size:clamp(1.8rem,5vw,2.5rem);line-height:1.1;letter-spacing:-.02em;font-weight:750}
 .pagehead p{color:var(--muted);margin-top:8px;max-width:52ch}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.chip{font:inherit;font-size:.9rem;font-weight:600;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:7px 14px;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.chip:hover{color:var(--text);border-color:var(--muted)}
+.chip[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .list{list-style:none;padding:0;display:grid;gap:10px}
 .row{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px 10px 10px;color:inherit;font:inherit;cursor:pointer;transition:background .15s,border-color .15s}
 .row:hover{background:var(--panel-hover);border-color:var(--muted)}
@@ -189,6 +193,7 @@ dialog::backdrop{background:rgba(0,0,0,.7)}
   </header>
 
   <main>
+    <div class="chips" id="chips" role="group" aria-label="Filter by region"></div>
     <ul class="list" id="list"></ul>
 
     <aside class="note">
@@ -224,6 +229,7 @@ dialog::backdrop{background:rgba(0,0,0,.7)}
 /*
   EDIT COUNTRIES HERE.
   - name:  country name
+  - region: Africa, Americas, Asia, Europe or Oceania (used by the filter buttons)
   - line:  one-line summary of the typical road lines (shown on the row and in the popup)
   - freq:  how common it is, 1 to 4  (1 Sometimes, 2 Common, 3 Very common, 4 Almost always)
   - alt:   look-alikes and alternative patterns
@@ -234,45 +240,93 @@ dialog::backdrop{background:rgba(0,0,0,.7)}
 */
 const FREQ = ["", "Sometimes", "Common", "Very common", "Almost always"];
 const COUNTRIES = [
-  { name: "South Africa", line: "Yellow outer lines with white center lines", freq: 3,
+  { name: "Poland", region: "Europe", line: "Double white center line, very common", freq: 3,
+    alt: ["A single white center line with white or no edge lines also appears", "Czechia often has solid edge lines and no center line, which helps tell the two apart"],
+    notes: ["Drives on the right", "Double center lines are one of the best quick clues for Poland"],
+    img: "" },
+  { name: "South Africa", region: "Africa", line: "Yellow outer lines with white center lines", freq: 3,
     alt: ["A dashed white center line boxed in by two solid white lines is also common", "Botswana, Lesotho, Eswatini and Namibia use the same yellow-edge style, so treat it as a southern Africa clue first"],
     notes: ["Drives on the left", "Lines are less reliable in towns and on small roads"],
     img: "" },
-  { name: "Australia", line: "White center lines and white edge lines", freq: 3,
+  { name: "Australia", region: "Oceania", line: "White center lines and white edge lines", freq: 3,
     alt: ["Many quiet rural roads have no markings at all", "New Zealand also drives on the left and shares the yellow diamond warning signs, so don't rely on lines alone"],
     notes: ["Drives on the left", "Yellow diamond warning signs help tell it apart from South Africa"],
     img: "" },
-  { name: "Chile", line: "Yellow center line with white edge lines", freq: 3,
-    alt: ["Double solid yellow center lines show up on busier stretches", "Neighboring South American countries can look similar, so use signs and other clues too"],
-    notes: ["Drives on the right", "Rural roads may have faded or missing edge lines"],
+  { name: "Chile", region: "Americas", line: "All-yellow lines, or all-white lines", freq: 2,
+    alt: ["All-yellow road lines are unique to Chile within South America", "All-white roads are common too, but Argentina sometimes has them as well"],
+    notes: ["Drives on the right", "Seeing all-yellow lines is a strong Chile clue in South America"],
     img: "" },
-  { name: "Poland", line: "White center lines, usually with white edge lines", freq: 3,
-    alt: ["Yellow lines mostly appear only as temporary markings at roadworks", "Nearby Central European countries look very similar"],
-    notes: ["Drives on the right", "Confirm with language, signs and license plates"],
+  { name: "Turkey", region: "Asia", line: "White lines throughout", freq: 3,
+    alt: ["Yellow lines are mostly temporary markings", "Red and white corner chevrons and blue or green direction signs help confirm Turkey"],
+    notes: ["Drives on the right", "The letters ş and ç (c with a hook) are a quick confirmation"],
     img: "" },
-  { name: "Turkey", line: "Mostly white lines", freq: 2,
-    alt: ["Edge lines are more likely on main roads than on small ones", "Yellow is the exception, not the rule"],
-    notes: ["Drives on the right", "Lines alone rarely settle it, so check signs and the letters used (ç, ş, ğ, ı)"],
+  { name: "Sweden", region: "Europe", line: "White center line with white dashed edge lines", freq: 3,
+    alt: ["Norway, Denmark and Iceland also use dashed edge lines", "Norway usually has a yellow center line instead"],
+    notes: ["Drives on the right", "The gaps between the edge dashes are longer than the dashes themselves"],
     img: "" },
-  { name: "Sweden", line: "White center lines with dashed white edge lines", freq: 3,
-    alt: ["Norway, Finland, Denmark and Iceland often use dashed edge lines too", "A yellow center line points toward Norway or Finland instead"],
-    notes: ["Drives on the right", "Short, tightly spaced dashes are typical for the Nordic region"],
+  { name: "Norway", region: "Europe", line: "Yellow center line with white edge lines, often dashed", freq: 3,
+    alt: ["Finland can also have a yellow center line, but its side lines are solid when present", "Sweden looks similar but uses a white center line"],
+    notes: ["Drives on the right", "Yellow center plus dashed white edges is the combination to remember"],
     img: "" },
-  { name: "Norway", line: "Yellow center lines with dashed white edge lines", freq: 3,
-    alt: ["Finland also uses yellow center lines, but usually without edge lines", "Sweden looks similar but uses white center lines"],
-    notes: ["Drives on the right", "Yellow center plus dashed white edges together is the combination to remember"],
+  { name: "Finland", region: "Europe", line: "White or yellow center line, solid white side lines when present", freq: 3,
+    alt: ["The center line is sometimes joined by a second line or stripes", "Norway has similar yellow center lines but more often uses dashed edge lines"],
+    notes: ["Drives on the right", "Many smaller roads have no side lines at all"],
     img: "" },
-  { name: "United States", line: "Yellow center line with white edge lines", freq: 3,
+  { name: "Denmark", region: "Europe", line: "Short dashed edge lines on main roads", freq: 2,
+    alt: ["Other Nordic countries use dashed edges too, so check the dash length and the center line color"],
+    notes: ["Drives on the right"],
+    img: "" },
+  { name: "France", region: "Europe", line: "Very long white dashes along both sides", freq: 3,
+    alt: ["No other European country has side dashes this long", "Corsica often has shorter white dashes on the sides"],
+    notes: ["Drives on the right"],
+    img: "" },
+  { name: "Ireland", region: "Europe", line: "Yellow dashed edge lines", freq: 2,
+    alt: ["Very rare in the UK, which makes this a good way to tell Ireland from the UK"],
+    notes: ["Drives on the left"],
+    img: "" },
+  { name: "Czechia", region: "Europe", line: "Solid outer lines with no center line", freq: 2,
+    alt: ["Useful for telling Czechia apart from Slovakia"],
+    notes: ["Drives on the right"],
+    img: "" },
+  { name: "Greece", region: "Europe", line: "Double white or yellow center line", freq: 2,
+    alt: ["Double white center lines also point to Malaysia"],
+    notes: ["Drives on the right"],
+    img: "" },
+  { name: "United States", region: "Americas", line: "Yellow center line with white edge lines", freq: 3,
     alt: ["Canada looks almost the same, so check speed signs (mph or km/h) and other clues", "Mexico is similar but often more faded"],
     notes: ["Drives on the right", "Double yellow center lines are the classic look", "Small rural roads often have no edge lines"],
     img: "" },
-  { name: "Canada", line: "Yellow center line with white edge lines", freq: 3,
+  { name: "Canada", region: "Americas", line: "Yellow center line with white edge lines", freq: 3,
     alt: ["Almost identical to the USA, and speed signs in km/h are the quick giveaway", "Some provinces use patterns that differ slightly, so don't rely on lines alone"],
     notes: ["Drives on the right", "French signs appear in Quebec and nearby regions"],
     img: "" },
-  { name: "Mexico", line: "Yellow center line, often faded", freq: 3,
+  { name: "Mexico", region: "Americas", line: "Yellow center line, often faded", freq: 3,
     alt: ["Edge lines are white on better roads and missing on many smaller ones", "The USA and Canada look similar but are usually crisper"],
     notes: ["Drives on the right", "Faded paint is a useful hint, not proof"],
+    img: "" },
+  { name: "Brazil", region: "Americas", line: "Double yellow center line with white outer lines", freq: 3,
+    alt: ["Argentina and Uruguay also use yellow center lines, but in different patterns"],
+    notes: ["Drives on the right", "Portuguese signs confirm it"],
+    img: "" },
+  { name: "Argentina", region: "Americas", line: "White center dashes beside a continuous yellow line", freq: 3,
+    alt: ["Uruguay uses a similar pattern", "Argentina sometimes has all-white roads too, like Chile"],
+    notes: ["Drives on the right", "Spanish signs, so use other clues to separate it from its neighbors"],
+    img: "" },
+  { name: "Uruguay", region: "Americas", line: "Triple center line: double yellow with white dashes between", freq: 3,
+    alt: ["This design is not found elsewhere in the Americas", "White center dashes beside a continuous yellow line also appear, like in Argentina"],
+    notes: ["Drives on the right"],
+    img: "" },
+  { name: "Malaysia", region: "Asia", line: "Double white continuous lines", freq: 1,
+    alt: ["Thick yellow lines running across the road sometimes appear", "Black-and-white painted markings and guardrails are common"],
+    notes: ["Drives on the left", "Double white continuous lines are fairly rare in the rest of the world"],
+    img: "" },
+  { name: "Thailand", region: "Asia", line: "Yellow middle lines, striped or solid", freq: 2,
+    alt: ["White middle lines are common too"],
+    notes: ["Drives on the left"],
+    img: "" },
+  { name: "Philippines", region: "Asia", line: "Mostly white lines, sometimes single or double yellow", freq: 3,
+    alt: ["Triple center lines also appear, as in Uruguay and southern Africa"],
+    notes: ["Drives on the right"],
     img: "" }
 ];
 
@@ -294,8 +348,7 @@ function fill(ul, items) {
   ul.replaceChildren(...items.map(t => Object.assign(document.createElement("li"), { textContent: t })));
 }
 
-const frag = document.createDocumentFragment();
-COUNTRIES.forEach((c, i) => {
+function row(c) {
   const li = document.createElement("li");
   const b = document.createElement("button");
   b.type = "button"; b.className = "row";
@@ -308,9 +361,21 @@ COUNTRIES.forEach((c, i) => {
   chev.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
   b.append(t, chev);
   b.addEventListener("click", () => open(c));
-  li.appendChild(b); frag.appendChild(li);
+  li.appendChild(b);
+  return li;
+}
+function render(region) {
+  list.replaceChildren(...COUNTRIES.filter(c => region === "All" || c.region === region).map(row));
+  chips.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x.textContent === region));
+}
+const chips = $("chips");
+["All", ...new Set(COUNTRIES.map(c => c.region))].forEach(r => {
+  const x = document.createElement("button");
+  x.type = "button"; x.className = "chip"; x.textContent = r;
+  x.addEventListener("click", () => render(r));
+  chips.appendChild(x);
 });
-list.appendChild(frag);
+render("All");
 
 function open(c) {
   $("d-pic").replaceChildren(...picture(c.img, c.name, "ph").childNodes);
