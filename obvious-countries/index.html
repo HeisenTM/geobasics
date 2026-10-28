@@ -224,6 +224,16 @@ a.lk:hover{border-color:var(--muted)}
 .lk.off{color:var(--muted);opacity:.7}
 .apart{color:var(--muted);font-size:.94rem}
 .mbody [hidden]{display:none}
+
+.slide{overflow:hidden;cursor:zoom-in}
+.slide img{transition:transform .18s ease,transform-origin .06s linear;transform-origin:50% 50%;user-select:none;-webkit-user-drag:none}
+.slide.zoom{cursor:zoom-out;touch-action:none}
+.slide.zoom img{transform:scale(2.5)}
+.track.zoomed{overflow:hidden;scroll-snap-type:none}
+.gallery.zoomed .gnav,.gallery.zoomed .dots,.gallery.zoomed .pcount{display:none}
+.zhint{position:absolute;right:12px;bottom:12px;z-index:2;display:flex;align-items:center;gap:6px;font-size:.78rem;font-weight:600;background:rgba(31,31,30,.85);border:1px solid var(--line);border-radius:999px;padding:4px 11px;pointer-events:none}
+.zhint[hidden]{display:none}
+.dots{bottom:14px}
 </style>
 </head>
 <body>
@@ -275,6 +285,7 @@ a.lk:hover{border-color:var(--muted)}
     <div class="pcount" id="pcount" hidden></div>
     <div class="dots" id="dots"></div>
     <p class="soon" id="soon" hidden>Pictures coming soon</p>
+    <span class="zhint" id="zhint" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M10.5 7.5v6M7.5 10.5h6"/></svg><span id="zhint-t">Tap to zoom</span></span>
   </div>
   <div class="mbody">
     <h2 id="d-name"></h2>
@@ -417,18 +428,39 @@ function setIdx() {
   $("prev").hidden = n < 2 || i === 0; $("next").hidden = n < 2 || i >= n - 1;
 }
 function go(d) { track.scrollBy({ left: d * track.clientWidth, behavior: "smooth" }); }
+function setOrigin(s, e) {
+  const r = s.getBoundingClientRect();
+  const x = Math.min(100, Math.max(0, (e.clientX - r.left) / r.width * 100));
+  const y = Math.min(100, Math.max(0, (e.clientY - r.top) / r.height * 100));
+  s.firstChild.style.transformOrigin = x + "% " + y + "%";
+}
+function setZoom(s, on, e) {
+  s.classList.toggle("zoom", on);
+  track.classList.toggle("zoomed", on);
+  $("gallery").classList.toggle("zoomed", on);
+  $("zhint-t").textContent = on ? "Move to look around, tap to exit" : "Tap to zoom";
+  if (on && e) setOrigin(s, e);
+  if (!on) { s.firstChild.style.transformOrigin = "50% 50%"; setIdx(); }
+}
+function resetZoom() {
+  track.classList.remove("zoomed"); $("gallery").classList.remove("zoomed");
+  $("zhint").hidden = true; $("zhint-t").textContent = "Tap to zoom";
+}
 async function loadGallery(c, my) {
   for (let n = 1; n <= 40; n++) {
     const u = await first(cand(c.slug, n));
     if (my !== token || !u) break;
     const s = el("div", "slide"), im = new Image(); im.src = u; im.alt = c.name + ", picture " + n; im.decoding = "async";
     s.appendChild(im); track.appendChild(s); $("dots").appendChild(el("i"));
+    s.addEventListener("click", e => setZoom(s, !s.classList.contains("zoom"), e));
+    s.addEventListener("pointermove", e => { if (s.classList.contains("zoom") && (e.pointerType === "mouse" || e.buttons)) setOrigin(s, e); });
+    $("zhint").hidden = false;
     $("pcount").hidden = track.children.length < 2; setIdx();
   }
   if (my === token && !track.children.length) $("soon").hidden = false;
 }
 function openC(c) {
-  token++; track.replaceChildren(); $("dots").replaceChildren(); $("soon").hidden = true; $("pcount").hidden = true; $("prev").hidden = $("next").hidden = true;
+  token++; resetZoom(); track.replaceChildren(); $("dots").replaceChildren(); $("soon").hidden = true; $("pcount").hidden = true; $("prev").hidden = $("next").hidden = true;
   $("d-name").textContent = c.name; $("d-region").textContent = c.region === "Basics" ? "Start here" : c.region;
   $("d-head").textContent = c.head;
   $("d-clues").replaceChildren(...c.clues.map(t => {
@@ -451,7 +483,7 @@ $("prev").addEventListener("click", () => go(-1)); $("next").addEventListener("c
 dlg.addEventListener("keydown", e => { if (e.key === "ArrowRight") go(1); if (e.key === "ArrowLeft") go(-1); });
 $("close").addEventListener("click", () => dlg.close());
 dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
-dlg.addEventListener("close", () => token++);
+dlg.addEventListener("close", () => { token++; resetZoom(); });
 render();
 </script>
 
