@@ -196,21 +196,21 @@ dialog::backdrop{background:rgba(0,0,0,.7)}
 .tg i{font-style:normal;font-size:.76rem;font-weight:600;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 9px;white-space:nowrap}
 .rt span{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 @media (max-width:700px){.tg{display:none}}
-.gallery{position:relative;background:var(--bg);border-bottom:1px solid var(--line)}
+.gallery{position:relative;background:#171716}
 .track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;aspect-ratio:16/10;outline:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
 .track::-webkit-scrollbar{display:none}
 .slide{flex:0 0 100%;scroll-snap-align:center;display:grid;place-items:center;background:#171716}
 .slide img{display:block;max-width:100%;max-height:100%;width:100%;height:100%;object-fit:contain}
-.gnav{position:absolute;top:50%;transform:translateY(-50%);z-index:2;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:rgba(31,31,30,.85);color:var(--text);border:1px solid var(--line);cursor:pointer}
+.gnav{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--bg);color:var(--text);border:1px solid var(--line);cursor:pointer}
 .gnav:hover{border-color:var(--muted)}
-.gnav.prev{left:10px}.gnav.next{right:10px}
-.gnav[hidden],.pcount[hidden],.soon[hidden]{display:none}
-.pcount{position:absolute;left:12px;top:12px;z-index:2;font-size:.8rem;font-weight:600;background:rgba(31,31,30,.85);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
-.dots{position:absolute;left:0;right:0;bottom:10px;display:flex;justify-content:center;gap:6px;pointer-events:none}
-.dots:empty{display:none}
-.dots i{width:7px;height:7px;border-radius:50%;background:rgba(242,241,237,.35)}
+.pcount[hidden],.soon[hidden]{display:none}
+.gnav[hidden]{display:grid;visibility:hidden}
+.pcount{font-size:.85rem;font-weight:600;color:var(--muted)}
+.dots{display:flex;gap:6px}
+.dots:empty,.dots[hidden]{display:none}
+.dots i{width:7px;height:7px;border-radius:50%;background:var(--line)}
 .dots i.on{background:var(--text)}
-.soon{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);border:1px dashed var(--line);margin:0}
+.soon{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);margin:0}
 .region{color:var(--muted);font-size:.9rem;margin-top:2px}
 .main{margin-top:14px;padding:14px 16px;background:var(--bg);border:1px solid var(--line);border-left:3px solid var(--text);border-radius:12px}
 .main .lbl{color:var(--muted);font-size:.82rem}
@@ -230,10 +230,19 @@ a.lk:hover{border-color:var(--muted)}
 .slide.zoom{cursor:zoom-out;touch-action:none}
 .slide.zoom img{transform:scale(2.5)}
 .track.zoomed{overflow:hidden;scroll-snap-type:none}
-.gallery.zoomed .gnav,.gallery.zoomed .dots,.gallery.zoomed .pcount{display:none}
-.zhint{position:absolute;right:12px;bottom:12px;z-index:2;display:flex;align-items:center;gap:6px;font-size:.78rem;font-weight:600;background:rgba(31,31,30,.85);border:1px solid var(--line);border-radius:999px;padding:4px 11px;pointer-events:none}
-.zhint[hidden]{display:none}
-.dots{bottom:14px}
+.gallery.zoomed + .gbar .gnav{visibility:hidden}
+.ztext{color:var(--muted);font-size:.84rem;text-align:center;margin:0}
+.ztext[hidden]{display:none}
+
+.mhead{position:sticky;top:0;z-index:3;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px 16px 12px 20px;background:var(--panel);border-bottom:1px solid var(--line)}
+.mhead h2{font-size:1.35rem;letter-spacing:-.015em;font-weight:750;line-height:1.2}
+.mhead .region{margin-top:2px}
+.mhead .x{position:static;flex:none}
+.gbar{display:grid;gap:6px;padding:10px 14px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+.gctl{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.gmid{display:flex;flex-direction:column;align-items:center;gap:6px}
+.gbar:has(.gnav[hidden]):has(.dots[hidden]) .gctl{display:none}
+.mbody{padding-top:6px}
 </style>
 </head>
 <body>
@@ -275,21 +284,23 @@ a.lk:hover{border-color:var(--muted)}
 </div>
 
 <dialog id="dlg" aria-labelledby="d-name">
-  <button class="x" id="close" aria-label="Close">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
-  </button>
+  <div class="mhead">
+    <div><h2 id="d-name"></h2><p class="region" id="d-region"></p></div>
+    <button class="x" id="close" aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
   <div class="gallery" id="gallery">
     <div class="track" id="track" tabindex="0" aria-label="Pictures. Swipe or use the arrow keys."></div>
-    <button class="gnav prev" id="prev" aria-label="Previous picture" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
-    <button class="gnav next" id="next" aria-label="Next picture" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
-    <div class="pcount" id="pcount" hidden></div>
-    <div class="dots" id="dots"></div>
     <p class="soon" id="soon" hidden>Pictures coming soon</p>
-    <span class="zhint" id="zhint" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M10.5 7.5v6M7.5 10.5h6"/></svg><span id="zhint-t">Tap to zoom</span></span>
+  </div>
+  <div class="gbar" id="gbar" hidden>
+    <div class="gctl">
+      <button class="gnav prev" id="prev" aria-label="Previous picture" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <div class="gmid"><span class="pcount" id="pcount" hidden></span><div class="dots" id="dots"></div></div>
+      <button class="gnav next" id="next" aria-label="Next picture" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+    </div>
+    <p class="ztext" id="zhint" hidden><span id="zhint-t">Tap the picture to zoom</span></p>
   </div>
   <div class="mbody">
-    <h2 id="d-name"></h2>
-    <p class="region" id="d-region"></p>
     <div class="main"><span class="lbl">Main clue</span><p id="d-head"></p></div>
     <h3>All the clues</h3>
     <ul class="clues" id="d-clues"></ul>
@@ -438,13 +449,13 @@ function setZoom(s, on, e) {
   s.classList.toggle("zoom", on);
   track.classList.toggle("zoomed", on);
   $("gallery").classList.toggle("zoomed", on);
-  $("zhint-t").textContent = on ? "Move to look around, tap to exit" : "Tap to zoom";
+  $("zhint-t").textContent = on ? "Move to look around, tap to exit" : "Tap the picture to zoom";
   if (on && e) setOrigin(s, e);
   if (!on) { s.firstChild.style.transformOrigin = "50% 50%"; setIdx(); }
 }
 function resetZoom() {
   track.classList.remove("zoomed"); $("gallery").classList.remove("zoomed");
-  $("zhint").hidden = true; $("zhint-t").textContent = "Tap to zoom";
+  $("zhint").hidden = true; $("zhint-t").textContent = "Tap the picture to zoom";
 }
 async function loadGallery(c, my) {
   for (let n = 1; n <= 40; n++) {
@@ -454,13 +465,13 @@ async function loadGallery(c, my) {
     s.appendChild(im); track.appendChild(s); $("dots").appendChild(el("i"));
     s.addEventListener("click", e => setZoom(s, !s.classList.contains("zoom"), e));
     s.addEventListener("pointermove", e => { if (s.classList.contains("zoom") && (e.pointerType === "mouse" || e.buttons)) setOrigin(s, e); });
-    $("zhint").hidden = false;
+    $("zhint").hidden = false; $("gbar").hidden = false; $("dots").hidden = track.children.length < 2;
     $("pcount").hidden = track.children.length < 2; setIdx();
   }
   if (my === token && !track.children.length) $("soon").hidden = false;
 }
 function openC(c) {
-  token++; resetZoom(); track.replaceChildren(); $("dots").replaceChildren(); $("soon").hidden = true; $("pcount").hidden = true; $("prev").hidden = $("next").hidden = true;
+  token++; resetZoom(); $("gbar").hidden = true; track.replaceChildren(); $("dots").replaceChildren(); $("soon").hidden = true; $("pcount").hidden = true; $("prev").hidden = $("next").hidden = true;
   $("d-name").textContent = c.name; $("d-region").textContent = c.region === "Basics" ? "Start here" : c.region;
   $("d-head").textContent = c.head;
   $("d-clues").replaceChildren(...c.clues.map(t => {
