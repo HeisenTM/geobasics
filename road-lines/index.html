@@ -223,6 +223,11 @@ dialog.tab-map .gallery,dialog.tab-map .gbar,dialog.tab-map .picwrap{display:non
 .lbl-hi{fill:#fff;font-weight:750}
 .mtools{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px}
 .mcap{color:var(--muted);font-size:.9rem}
+.thumb img{opacity:0;transition:opacity .25s}
+.thumb img.ok{opacity:1}
+.pic img{opacity:0;transition:transform .18s ease,transform-origin .06s linear,opacity .25s}
+.pic img.ok{opacity:1}
+.list li{content-visibility:auto;contain-intrinsic-size:auto 76px}
 </style>
 </head>
 <body>
@@ -516,10 +521,11 @@ function flagEl(c) {
 function loadInto(box, c, kind) {
   box.classList.remove("empty");
   box.replaceChildren();
-  const im = new Image();
+  const im = document.createElement("img");
   im.alt = "Road lines in " + c.name;
   im.decoding = "async";
-  if (kind === "thumb") im.loading = "lazy";
+  if (kind === "thumb") im.loading = "lazy"; else im.fetchPriority = "high";
+  im.onload = () => im.classList.add("ok");
   im.onerror = () => { im.remove(); box.classList.add("empty"); };
   im.src = slug(c.name) + "/" + kind + "." + IMG_EXT;
   box.appendChild(im);
@@ -553,6 +559,7 @@ function row(c) {
   chev.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
   b.append(t, flagEl(c), chev);
   b.addEventListener("click", () => open(c));
+  b.addEventListener("pointerenter", () => { const i = new Image(); i.decoding = "async"; i.src = slug(c.name) + "/full." + IMG_EXT; }, { once: true });
   li.appendChild(b);
   return li;
 }
