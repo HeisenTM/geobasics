@@ -269,6 +269,11 @@ dialog.tab-map .gallery,dialog.tab-map .gbar,dialog.tab-map .picwrap{display:non
 .lbl-hi{fill:#fff;font-weight:750}
 .mtools{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px}
 .mcap{color:var(--muted);font-size:.9rem}
+.thumb img{opacity:0;transition:opacity .25s}
+.thumb img.ok{opacity:1}
+.slide img{opacity:0;transition:transform .18s ease,transform-origin .06s linear,opacity .25s}
+.slide img.ok{opacity:1}
+.list li{content-visibility:auto;contain-intrinsic-size:auto 76px}
 </style>
 </head>
 <body>
@@ -427,22 +432,30 @@ const cand = (s, n) => EXTS.map(e => s + "/" + n + "." + e);
 
 /* list */
 const list = $("list");
-const io = "IntersectionObserver" in window ? new IntersectionObserver(es => es.forEach(e => {
-  if (e.isIntersecting) { io.unobserve(e.target); loadThumb(e.target); }
-}), { rootMargin: "200px" }) : null;
-async function loadThumb(box) {
-  const c = box.__c;
-  const u = await first([...cand(c.slug, "thumb"), ...cand(c.slug, 1)]);
-  if (u) { const im = new Image(); im.src = u; im.alt = ""; im.decoding = "async"; box.replaceChildren(im); }
+const warmed = new Set();
+function warm(c) {            /* start loading the first big picture when the pointer reaches a row */
+  if (warmed.has(c.slug)) return; warmed.add(c.slug);
+  const i = new Image(); i.decoding = "async"; i.src = cand(c.slug, 1)[0];
+}
+function thumbImg(c) {
+  const im = document.createElement("img");
+  im.alt = ""; im.decoding = "async"; im.loading = "lazy"; im.width = 88; im.height = 56;
+  const urls = [...cand(c.slug, "thumb"), ...cand(c.slug, 1)];
+  let k = 0;
+  im.onload = () => im.classList.add("ok");
+  im.onerror = () => { if (k < urls.length) im.src = urls[k++]; else im.remove(); };
+  im.src = urls[k++];
+  return im;
 }
 function row(c) {
   const li = el("li"), b = el("button", "row"); b.type = "button"; b.setAttribute("aria-haspopup", "dialog");
-  const th = el("div", "thumb"); th.__c = c; io ? io.observe(th) : loadThumb(th);
+  const th = el("div", "thumb"); th.appendChild(thumbImg(c));
   const t = el("span", "rt"); t.append(el("b", "", c.name), el("span", "", c.head));
   const tg = el("span", "tg"); c.tags.slice(0, 3).forEach(x => tg.appendChild(el("i", "", x)));
   const chev = el("span", "chev"); chev.setAttribute("aria-hidden", "true");
   chev.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
   b.append(th, t, tg, chev); b.addEventListener("click", () => openC(c));
+  b.addEventListener("pointerenter", () => warm(c), { once: true });
   li.appendChild(b); return li;
 }
 
@@ -651,18 +664,46 @@ function resetZoom() {
   track.classList.remove("zoomed"); $("gallery").classList.remove("zoomed");
   $("zhint").hidden = true; $("zhint-t").textContent = "Tap the picture to zoom";
 }
-async function loadGallery(c, my) {
-  for (let n = 1; n <= 40; n++) {
-    const u = await first(cand(c.slug, n));
-    if (my !== token || !u) break;
-    const s = el("div", "slide"), im = new Image(); im.src = u; im.alt = c.name + ", picture " + n; im.decoding = "async";
-    s.appendChild(im); track.appendChild(s); $("dots").appendChild(el("i"));
-    s.addEventListener("click", e => setZoom(s, !s.classList.contains("zoom"), e));
-    s.addEventListener("pointermove", e => { if (s.classList.contains("zoom") && (e.pointerType === "mouse" || e.buttons)) setOrigin(s, e); });
-    $("zhint").hidden = false; $("gbar").hidden = false; $("dots").hidden = track.children.length < 2;
-    $("pcount").hidden = track.children.length < 2; setIdx();
+const slideCount = () => track.children.length;
+function refreshUi() {
+  $("dots").replaceChildren(...[...track.children].map(() => el("i")));
+  $("zhint").hidden = !slideCount(); $("gbar").hidden = !slideCount();
+  $("dots").hidden = slideCount() < 2; $("pcount").hidden = slideCount() < 2; setIdx();
+}
+function addSlide(c, urls, n, eager, my) {
+  const s = el("div", "slide"), im = document.createElement("img");
+  im.alt = c.name + ", picture " + n; im.decoding = "async";
+  im.loading = eager ? "eager" : "lazy"; if (eager) im.fetchPriority = "high";
+  let k = 0;
+  im.onload = () => im.classList.add("ok");
+  im.onerror = () => {
+    if (++k < urls.length) { im.src = urls[k]; return; }
+    s.remove(); refreshUi();
+    if (my === token && !slideCount()) $("soon").hidden = false;
+  };
+  im.src = urls[0]; s.appendChild(im); track.appendChild(s);
+  s.addEventListener("click", e => setZoom(s, !s.classList.contains("zoom"), e));
+  s.addEventListener("pointermove", e => { if (s.classList.contains("zoom") && (e.pointerType === "mouse" || e.buttons)) setOrigin(s, e); });
+  refreshUi();
+}
+/* a quick HEAD request tells us if picture n exists without downloading it */
+async function findPic(slug, n) {
+  for (const e of EXTS) {
+    const u = slug + "/" + n + "." + e;
+    try { const r = await fetch(u, { method: "HEAD" }); if (r.ok) return u; }
+    catch (err) { if (await probe(u)) return u; }
   }
-  if (my === token && !track.children.length) $("soon").hidden = false;
+  return null;
+}
+async function loadGallery(c, my) {
+  addSlide(c, cand(c.slug, 1), 1, true, my);          /* picture 1 starts loading right away */
+  let n = 2, more = true;
+  while (more && n <= 40) {
+    const found = await Promise.all(Array.from({ length: 8 }, (_, i) => findPic(c.slug, n + i)));
+    if (my !== token) return;
+    for (let i = 0; i < found.length; i++) { if (!found[i]) { more = false; break; } addSlide(c, [found[i]], n + i, false, my); }
+    n += 8;
+  }
 }
 function openC(c) {
   token++; resetZoom(); setupMap(c); $("gbar").hidden = true; track.replaceChildren(); $("dots").replaceChildren(); $("soon").hidden = true; $("pcount").hidden = true; $("prev").hidden = $("next").hidden = true;
